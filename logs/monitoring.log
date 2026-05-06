@@ -1,0 +1,35 @@
+[2026-04-30 14:17:15] INFO     🚀 CCTV Monitoring System dimulai
+[2026-04-30 14:17:15] INFO        Threshold      : 3 jam
+[2026-04-30 14:17:15] INFO        Interval cek   : 30 menit
+[2026-04-30 14:17:15] INFO        Jumlah kamera  : 3
+[2026-04-30 14:17:15] INFO        Log file       : C:\Users\USER\PROJECT CODING\monitoring-cctv\logs\monitoring.log
+[2026-04-30 14:17:15] INFO     =======================================================
+[2026-04-30 14:17:15] INFO     Monitoring dimulai — 2026-04-30 14:17:15
+[2026-04-30 14:17:15] INFO     =======================================================
+[2026-04-30 14:17:15] INFO     Memeriksa Lobby Depan → C:/Users/USER/PROJECT CODING/cctv_test/cam1
+[2026-04-30 14:17:15] INFO     [Lobby Depan] File terakhir: 14:14:36 | Delay: 2 menit
+[2026-04-30 14:17:15] INFO     [Lobby Depan] OK ✓
+[2026-04-30 14:17:15] INFO     Memeriksa Parkiran → C:/Users/USER/PROJECT CODING/cctv_test/cam2
+[2026-04-30 14:17:15] INFO     [Parkiran] File terakhir: 09:14:51 | Delay: 5 jam 2 menit
+[2026-04-30 14:17:15] WARNING  [Parkiran] DOWN! Delay: 5 jam 2 menit. Mengirim notifikasi...
+[2026-04-30 14:17:16] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-04-30 14:17:16] INFO     Memeriksa Ruang Server → C:/Users/USER/PROJECT CODING/cctv_test/cam3
+[2026-04-30 14:17:16] WARNING  [Ruang Server] Folder kosong atau tidak ada file gambar: C:/Users/USER/PROJECT CODING/cctv_test/cam3
+[2026-04-30 14:17:17] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-04-30 14:17:17] INFO     Monitoring selesai.
+
+[2026-04-30 14:17:17] INFO     Scheduler aktif. Cek berikutnya dalam 30 menit...
+[2026-04-30 14:47:17] INFO     =======================================================
+[2026-04-30 14:47:17] INFO     Monitoring dimulai — 2026-04-30 14:47:17
+[2026-04-30 14:47:17] INFO     =======================================================
+[2026-04-30 14:47:17] INFO     Memeriksa Lobby Depan → C:/Users/USER/PROJECT CODING/cctv_test/cam1
+[2026-04-30 14:47:17] INFO     [Lobby Depan] File terakhir: 14:14:36 | Delay: 32 menit
+[2026-04-30 14:47:17] INFO     [Lobby Depan] OK ✓
+[2026-04-30 14:47:17] INFO     Memeriksa Parkiran → C:/Users/USER/PROJECT CODING/cctv_test/cam2
+[2026-04-30 14:47:17] INFO     [Parkiran] File terakhir: 09:14:51 | Delay: 5 jam 32 menit
+[2026-04-30 14:47:17] INFO     [Parkiran] Masih DOWN. Notifikasi sudah dikirim, tidak diulang.
+[2026-04-30 14:47:17] INFO     Memeriksa Ruang Server → C:/Users/USER/PROJECT CODING/cctv_test/cam3
+[2026-04-30 14:47:17] WARNING  [Ruang Server] Folder kosong atau tidak ada file gambar: C:/Users/USER/PROJECT CODING/cctv_test/cam3
+[2026-04-30 14:47:17] INFO     [Ruang Server] Notifikasi error sudah dikirim sebelumnya. Dilewati.
+[2026-04-30 14:47:17] INFO     Monitoring selesai.
+
