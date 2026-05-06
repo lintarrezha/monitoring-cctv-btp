@@ -19,7 +19,7 @@ class Config:
     # Folder induk yang berisi semua subfolder kamera.
     # Sistem akan auto-scan semua subfolder di dalamnya.
     # ─────────────────────────────────────────────────────
-    BASE_PATH = r"Z:\CCTV Snapshot"
+    BASE_PATH = r"Z:\CCTV Snapshot"  # Ganti dengan path ke folder CCTV di NAS Anda
 
     # ─────────────────────────────────────────────────────
     # ATURAN MONITORING

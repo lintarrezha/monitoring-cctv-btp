@@ -33,3 +33,52 @@
 [2026-04-30 14:47:17] INFO     [Ruang Server] Notifikasi error sudah dikirim sebelumnya. Dilewati.
 [2026-04-30 14:47:17] INFO     Monitoring selesai.
 
+[2026-05-06 09:27:39] INFO     ============================================================
+[2026-05-06 09:27:39] INFO       🚀 CCTV Monitoring System — Hybrid Mode
+[2026-05-06 09:27:39] INFO     ============================================================
+[2026-05-06 09:27:39] INFO       Base path      : C:\Users\USER\PROJECT CODING\test
+[2026-05-06 09:27:39] INFO       Threshold      : 3 menit
+[2026-05-06 09:27:39] INFO       Polling        : setiap 5 menit
+[2026-05-06 09:27:39] INFO       Log file       : C:\Users\USER\PROJECT CODING\monitoring-cctv\logs\monitoring.log
+[2026-05-06 09:27:39] INFO     ============================================================
+[2026-05-06 09:27:39] INFO     Kamera ditemukan (3): ['A', 'B', 'C']
+[2026-05-06 09:27:39] INFO     Inisialisasi status kamera...
+[2026-05-06 09:27:39] INFO     [A] Inisialisasi. Folder terbaru: tidak ditemukan. Timer dimulai dari sekarang.
+[2026-05-06 09:27:39] INFO     [B] Inisialisasi. Folder terbaru: tidak ditemukan. Timer dimulai dari sekarang.
+[2026-05-06 09:27:39] INFO     [C] Inisialisasi. Folder terbaru: tidak ditemukan. Timer dimulai dari sekarang.
+[2026-05-06 09:27:39] INFO     Watchdog memantau: C:\Users\USER\PROJECT CODING\test\A
+[2026-05-06 09:27:39] INFO     Watchdog memantau: C:\Users\USER\PROJECT CODING\test\B
+[2026-05-06 09:27:39] INFO     Watchdog memantau: C:\Users\USER\PROJECT CODING\test\C
+[2026-05-06 09:27:39] INFO     Watchdog aktif.
+[2026-05-06 09:27:39] INFO     Polling fallback aktif — interval: 5 menit.
+[2026-05-06 09:27:39] INFO     Sistem siap. Tekan Ctrl+C untuk berhenti.
+
+[2026-05-06 09:32:39] INFO     ── Polling fallback berjalan ──────────────────────
+[2026-05-06 09:32:39] WARNING  [A] Tidak ada folder tanggal ditemukan.
+[2026-05-06 09:32:39] WARNING  [B] Tidak ada folder tanggal ditemukan.
+[2026-05-06 09:32:39] WARNING  [C] Tidak ada folder tanggal ditemukan.
+[2026-05-06 09:32:39] INFO     ── Polling selesai ────────────────────────────────
+
+[2026-05-06 09:37:39] INFO     ── Polling fallback berjalan ──────────────────────
+[2026-05-06 09:37:39] INFO     [A] Folder tanggal baru: None → 2026_05_06-2026_05_06. Timer di-reset.
+[2026-05-06 09:37:39] INFO     [A] Folder: 2026_05_06-2026_05_06 | File terbaru: Logo_PU.jpg | Tidak ada perubahan.
+[2026-05-06 09:37:39] INFO     [B] Folder tanggal baru: None → 2026_05_06-2026_05_06. Timer di-reset.
+[2026-05-06 09:37:39] WARNING  [B] Folder 2026_05_06-2026_05_06 kosong.
+[2026-05-06 09:37:39] INFO     [C] Folder tanggal baru: None → 2026_05_06-2026_05_06. Timer di-reset.
+[2026-05-06 09:37:39] WARNING  [C] Folder 2026_05_06-2026_05_06 kosong.
+[2026-05-06 09:37:39] INFO     ── Polling selesai ────────────────────────────────
+
+[2026-05-06 09:38:55] INFO     [B] File baru: Logo_PU.jpg. Timer di-reset.
+[2026-05-06 09:39:04] INFO     [C] File baru: Logo_PU.jpg. Timer di-reset.
+[2026-05-06 09:40:39] WARNING  [A] TIMEOUT! Tidak ada file baru selama 3 menit. Mengirim alert...
+[2026-05-06 09:40:40] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-05-06 09:41:06] INFO     [A] File baru: SnapInsta.to_684749953_18361242694226083_6797605903150995213_n.jpg. Timer di-reset.
+[2026-05-06 09:41:06] INFO     [A] Recovery ditandai, menunggu bundling pesan.
+[2026-05-06 09:41:10] INFO     [A] Mengirim notifikasi RECOVERY...
+[2026-05-06 09:41:11] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-05-06 09:42:11] WARNING  [B] TIMEOUT! Tidak ada file baru selama 3 menit. Mengirim alert...
+[2026-05-06 09:42:12] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-05-06 09:42:12] WARNING  [C] TIMEOUT! Tidak ada file baru selama 3 menit. Mengirim alert...
+[2026-05-06 09:42:13] INFO     Notifikasi Telegram berhasil dikirim.
+[2026-05-06 09:42:29] INFO     Program dihentikan oleh pengguna (Ctrl+C).
+[2026-05-06 09:42:29] INFO     Program selesai.

@@ -172,7 +172,11 @@ class StateManager:
             now    = time.time()
 
             for cam_key, status in self._state.items():
-                if status["latest_folder"] is None:
+                # Skip key internal (bukan kamera)
+                if cam_key.startswith("_"):
+                    continue
+
+                if status.get("latest_folder") is None:
                     continue
 
                 elapsed = now - status["last_file_time"]
@@ -344,6 +348,7 @@ def send_telegram(message: str) -> bool:
 
 
 def build_alert_message(cam_name: str, folder_name: str, elapsed_str: str) -> str:
+    """Pesan alert untuk 1 kamera — dikirim sebagai bubble chat sendiri."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return (
         f"🚨 <b>CCTV ALERT — Tidak Ada File Baru</b>\n\n"
@@ -356,6 +361,7 @@ def build_alert_message(cam_name: str, folder_name: str, elapsed_str: str) -> st
 
 
 def build_recovery_message(cam_name: str, folder_name: str, latest_file: str) -> str:
+    """Pesan recovery untuk 1 kamera — dikirim sebagai bubble chat sendiri."""
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return (
         f"✅ <b>CCTV RECOVERY — Kembali Normal</b>\n\n"
@@ -364,6 +370,30 @@ def build_recovery_message(cam_name: str, folder_name: str, latest_file: str) ->
         f"🖼  <b>File terbaru:</b> {latest_file}\n"
         f"🕐 <b>Waktu       :</b> {now_str}\n\n"
         f"👍 Kamera sudah mengirim data kembali."
+    )
+
+
+def build_single_alert_block(cam_name: str, folder_name: str, elapsed_str: str) -> str:
+    """Buat 1 blok alert untuk 1 kamera (akan digabung jadi 1 pesan)."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"❌ <b>CCTV ALERT — Tidak Ada File Baru</b>\n"
+        f"📷 <b>Kamera       :</b> {cam_name}\n"
+        f"📁 <b>Folder hari  :</b> {folder_name}\n"
+        f"⌛ <b>Tidak ada file:</b> {elapsed_str}\n"
+        f"🕐 <b>Waktu deteksi:</b> {now_str}"
+    )
+
+
+def build_single_recovery_block(cam_name: str, folder_name: str, latest_file: str) -> str:
+    """Buat 1 blok recovery untuk 1 kamera (akan digabung jadi 1 pesan)."""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return (
+        f"✅ <b>CCTV RECOVERY — Kembali Normal</b>\n"
+        f"📷 <b>Kamera      :</b> {cam_name}\n"
+        f"📁 <b>Folder hari :</b> {folder_name}\n"
+        f"🖼  <b>File terbaru:</b> {latest_file}\n"
+        f"🕐 <b>Waktu       :</b> {now_str}"
     )
 
 
@@ -434,13 +464,19 @@ class CCTVEventHandler(FileSystemEventHandler):
 
 
 def _send_recovery_now(cam_key: str, folder_name: str, file_name: str):
-    """Kirim notifikasi recovery segera (dipanggil dari Watchdog thread)."""
+    """
+    Simpan info recovery ke pending_recoveries.
+    Akan digabung bersama alert lain menjadi 1 pesan di _evaluate_and_alert.
+    """
     cam_name = Path(cam_key).name
-    msg      = build_recovery_message(cam_name, folder_name, file_name)
-
-    if send_telegram(msg):
-        state.mark_recovery_sent(cam_key)
-        logger.info(f"[{cam_name}] Recovery notification dikirim.")
+    with state._lock:
+        if "_pending_recoveries" not in state._state:
+            state._state["_pending_recoveries"] = {}
+        state._state["_pending_recoveries"][cam_key] = {
+            "folder_name" : folder_name,
+            "file_name"   : file_name,
+        }
+    logger.info(f"[{cam_name}] Recovery ditandai, menunggu bundling pesan.")
 
 
 # ─────────────────────────────────────────────
@@ -530,15 +566,16 @@ def _poll_single_camera(cam_key: str, cam_path: Path):
                 f"(Watchdog miss): {latest_jpg.name}"
             )
 
-            # Jika sebelumnya down → kirim recovery
+            # Jika sebelumnya down → tandai recovery (akan dibundel di _evaluate_and_alert)
             if was_down:
                 state._state[cam_key]["is_down"] = False
-                # Kirim recovery di luar lock
-                threading.Thread(
-                    target=_send_recovery_now,
-                    args=(cam_key, latest_folder.name, latest_jpg.name),
-                    daemon=True
-                ).start()
+                if "_pending_recoveries" not in state._state:
+                    state._state["_pending_recoveries"] = {}
+                state._state["_pending_recoveries"][cam_key] = {
+                    "folder_name" : latest_folder.name,
+                    "file_name"   : latest_jpg.name,
+                }
+                logger.info(f"[{cam_name}] Recovery ditandai oleh polling.")
         else:
             logger.info(
                 f"[{cam_name}] Folder: {latest_folder.name} | "
@@ -549,10 +586,29 @@ def _poll_single_camera(cam_key: str, cam_path: Path):
 
 def _evaluate_and_alert(cameras: list[tuple[str, Path]]):
     """
-    Evaluasi semua kamera. Kirim alert untuk yang timeout.
+    Evaluasi semua kamera. Kirim alert per kamera masing-masing
+    jika sudah melebihi threshold waktu tanpa file baru.
+    Setiap kamera kirim bubble chat Telegram sendiri-sendiri.
     """
     cameras_to_alert = state.get_cameras_to_alert()
 
+    # Ambil pending recoveries (dari Watchdog atau polling)
+    with state._lock:
+        pending_recoveries = dict(
+            state._state.pop("_pending_recoveries", {})
+        )
+
+    # Kirim recovery per kamera
+    for cam_key, rec in pending_recoveries.items():
+        cam_name = Path(cam_key).name
+        msg      = build_recovery_message(
+            cam_name, rec["folder_name"], rec["file_name"]
+        )
+        logger.info(f"[{cam_name}] Mengirim notifikasi RECOVERY...")
+        if send_telegram(msg):
+            state.mark_recovery_sent(cam_key)
+
+    # Kirim alert per kamera
     for info in cameras_to_alert:
         cam_key       = info["cam_key"]
         elapsed       = info["elapsed"]
