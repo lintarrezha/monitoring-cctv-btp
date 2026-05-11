@@ -122,7 +122,9 @@ class StateManager:
     def update_folder(self, cam_key: str, new_folder: str):
         """
         Saat folder tanggal baru muncul (hari berganti),
-        update folder dan reset timer.
+        update folder tapi JANGAN reset is_down — biarkan
+        _poll_single_camera yang menentukan apakah ini recovery
+        setelah memverifikasi ada file baru di folder tersebut.
         """
         with self._lock:
             if cam_key not in self._state:
@@ -131,14 +133,13 @@ class StateManager:
             old_folder = self._state[cam_key]["latest_folder"]
 
             if old_folder != new_folder:
-                self._state[cam_key]["latest_folder"]  = new_folder
-                self._state[cam_key]["last_file_time"] = time.time()
-                self._state[cam_key]["alert_sent"]     = False
-                self._state[cam_key]["is_down"]        = False
-
+                self._state[cam_key]["latest_folder"] = new_folder
+                # Sengaja TIDAK reset last_file_time dan is_down di sini.
+                # Polling akan cek file terbaru di folder baru,
+                # lalu memutuskan apakah recovery atau belum.
                 logger.info(
-                    f"[{Path(cam_key).name}] Folder tanggal baru: "
-                    f"{old_folder} → {new_folder}. Timer di-reset."
+                    f"[{Path(cam_key).name}] Folder tanggal diperbarui: "
+                    f"{old_folder} → {new_folder}."
                 )
 
     def record_new_file(self, cam_key: str, file_name: str):
@@ -440,19 +441,48 @@ class CCTVEventHandler(FileSystemEventHandler):
         if cam_key is None:
             return
 
-        # Pastikan file berada di folder tanggal terbaru
+        # Cek apakah file berada di folder tanggal terbaru yang diketahui sistem
         current_latest = state.get_latest_folder(cam_key)
         if current_latest is None:
             return
 
+        file_in_latest = True
         try:
             path.resolve().relative_to(Path(cam_key) / current_latest)
         except ValueError:
+            file_in_latest = False
+
+        if not file_in_latest:
+            # File BUKAN di folder tanggal yang diketahui sistem.
+            # Cek apakah file ini ada di folder tanggal yang LEBIH BARU
+            # (kasus: hari berganti, CCTV buat folder baru, sistem masih
+            #  stuck di folder tanggal lama → ini penyebab bug recovery)
+            cam_path      = Path(cam_key)
+            actual_latest = get_latest_date_folder(cam_path)
+
+            if actual_latest is None or actual_latest.name == current_latest:
+                # Benar-benar bukan folder terbaru → abaikan
+                logger.info(
+                    f"[{Path(cam_key).name}] File diabaikan "
+                    f"(bukan di folder terbaru): {path.name}"
+                )
+                return
+
+            # Ada folder tanggal baru! Update state ke folder terbaru
             logger.info(
-                f"[{Path(cam_key).name}] File diabaikan "
-                f"(bukan di folder terbaru): {path.name}"
+                f"[{Path(cam_key).name}] Folder tanggal baru terdeteksi via file event: "
+                f"{current_latest} → {actual_latest.name}"
             )
-            return
+            state.update_folder(cam_key, actual_latest.name)
+
+            # Pastikan file memang ada di folder baru ini
+            try:
+                path.resolve().relative_to(actual_latest)
+            except ValueError:
+                return  # File bukan di folder baru, abaikan
+
+            # Lanjut proses file ini sebagai file baru di folder terbaru
+            current_latest = actual_latest.name
 
         # Catat file baru → reset timer
         was_down = state.record_new_file(cam_key, path.name)
@@ -521,6 +551,11 @@ def polling_worker(cameras: list[tuple[str, Path]]):
 def _poll_single_camera(cam_key: str, cam_path: Path):
     """
     Polling satu kamera: update folder terbaru dan cek file terbaru.
+
+    Perbaikan bug: jika kamera sedang DOWN dan hari berganti
+    (folder tanggal baru muncul), sistem langsung cek file di
+    folder baru tersebut dan kirim recovery jika ada file baru.
+    Sebelumnya sistem stuck menunggu file di folder tanggal lama.
     """
     cam_name = cam_path.name
 
@@ -528,25 +563,38 @@ def _poll_single_camera(cam_key: str, cam_path: Path):
         logger.warning(f"[{cam_name}] Folder tidak ditemukan saat polling.")
         return
 
-    # Cek folder tanggal terbaru
+    # Cek folder tanggal terbaru di disk
     latest_folder = get_latest_date_folder(cam_path)
 
     if latest_folder is None:
         logger.warning(f"[{cam_name}] Tidak ada folder tanggal ditemukan.")
         return
 
-    # Update jika folder berubah (hari berganti)
+    # Cek apakah folder tanggal berubah (hari berganti)
+    with state._lock:
+        if cam_key not in state._state:
+            return
+        old_folder = state._state[cam_key].get("latest_folder")
+        was_down   = state._state[cam_key]["is_down"]
+
+    folder_changed = (old_folder != latest_folder.name)
+
+    if folder_changed:
+        logger.info(
+            f"[{cam_name}] Folder tanggal berubah (polling): "
+            f"{old_folder} → {latest_folder.name}"
+        )
+
+    # Update folder di state jika berubah
     state.update_folder(cam_key, latest_folder.name)
 
-    # Cek file jpg terbaru
+    # Cek file jpg terbaru di folder terbaru
     latest_jpg = get_latest_jpg(latest_folder)
 
     if latest_jpg is None:
         logger.warning(f"[{cam_name}] Folder {latest_folder.name} kosong.")
         return
 
-    # Bandingkan modified time file dengan last_file_time di state
-    # Jika file lebih baru → Watchdog tadi terlewat, kita catch di sini
     file_mtime = latest_jpg.stat().st_mtime
 
     with state._lock:
@@ -556,17 +604,28 @@ def _poll_single_camera(cam_key: str, cam_path: Path):
         last_recorded = state._state[cam_key]["last_file_time"]
         was_down      = state._state[cam_key]["is_down"]
 
-        if file_mtime > last_recorded:
-            # Ada file baru yang Watchdog terlewat
+        # Ada file baru jika:
+        # 1. Modified time file lebih baru dari yang dicatat, ATAU
+        # 2. Folder berubah (hari baru) dan kamera sedang down
+        #    → file di folder baru = bukti CCTV sudah recovery
+        file_is_new = (file_mtime > last_recorded) or (folder_changed and was_down)
+
+        if file_is_new:
             state._state[cam_key]["last_file_time"] = file_mtime
             state._state[cam_key]["alert_sent"]     = False
 
-            logger.info(
-                f"[{cam_name}] Polling menangkap file baru "
-                f"(Watchdog miss): {latest_jpg.name}"
-            )
+            if folder_changed and was_down:
+                logger.info(
+                    f"[{cam_name}] Polling mendeteksi RECOVERY via folder baru: "
+                    f"{latest_folder.name} | File: {latest_jpg.name}"
+                )
+            else:
+                logger.info(
+                    f"[{cam_name}] Polling menangkap file baru "
+                    f"(Watchdog miss): {latest_jpg.name}"
+                )
 
-            # Jika sebelumnya down → tandai recovery (akan dibundel di _evaluate_and_alert)
+            # Jika sebelumnya down → tandai recovery
             if was_down:
                 state._state[cam_key]["is_down"] = False
                 if "_pending_recoveries" not in state._state:
